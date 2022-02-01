@@ -23,12 +23,3 @@ def quick_log(fn, arr):
     
     fp = os.path.join(dp, fn)
     np.save(fp, arr)
-    
-    
-def get_w2v(dataset, dim):
-    '''
-    W2V retrieval convenience fn
-    '''
-    import numpy as np
-    
-    return np.load(f'glove\\{dataset}_{dim}d.npy')
