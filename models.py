@@ -25,12 +25,16 @@ class base(torch.nn.Module):
            
 class joint(base):
     
-    def __init__(self, **kwargs):
+    def __init__(self,
+                 augmentation_comparator='pool',
+                 **kwargs):
         
         super().__init__(**kwargs)
         
         self.e = encoder(**kwargs)
-        self.a = augmentor(**kwargs)
+        
+        self.a = augmentor(comparator=augmentation_comparator,
+                           **kwargs)
         
         
     def forward(self,
@@ -104,18 +108,21 @@ class encoder(base):
 class augmentor(base):
     
     def __init__(self,
+                 augmentation_comparator='pool',
                  **kwargs):
         
         super().__init__(**kwargs)
         
-        self.comparator_model = torchvision.models.inception_v3()
         self.augmentor_loss = torch.nn.MSELoss()
         
-        if not os.path.exists('inception_v3_google-0cc3c7bd.pth'):
-            print('DOWNLOAD MODEL PARAMETERS AT:\nhttps://download.pytorch.org/models/inception_v3_google-0cc3c7bd.pth')
-        
-        self.comparator_model.load_state_dict(torch.load('inception_v3_google-0cc3c7bd.pth'))
-        self.comparator_model.eval()
+        if augmentation_comparator == 'cnn':
+            self.comparator_model = torchvision.models.inception_v3()
+
+            if not os.path.exists('inception_v3_google-0cc3c7bd.pth'):
+                print('DOWNLOAD MODEL PARAMETERS AT:\nhttps://download.pytorch.org/models/inception_v3_google-0cc3c7bd.pth')
+
+            self.comparator_model.load_state_dict(torch.load('inception_v3_google-0cc3c7bd.pth'))
+            self.comparator_model.eval()
         
         
         self.c1 = torch.nn.Conv2d(in_channels=1*self.n_channels, out_channels=3*self.n_channels, kernel_size=3, stride=1, padding=0, device=self.device, dtype=None)        
@@ -161,17 +168,62 @@ class augmentor(base):
         
         return x
     
+    
     def evaluate_augmentor(self,
                            x):
         
-        X = self.forward(x).detach()
+        A = self.forward(x).detach()
+        
+        loss = self.comparator(x, A)
+
+        return A, loss
+    
+    
+    def cnn_comparator(self,
+                       x,
+                       A):
         
         x = x.expand(-1, 3, -1, -1).resize_((x.shape[0],3,299,299))
-        X = X.expand(-1, 3, -1, -1).resize_((x.shape[0],3,299,299))
+        A = XA.expand(-1, 3, -1, -1).resize_((x.shape[0],3,299,299))
             
-        x1 = self.comparator_model(x)
-        X1 = self.comparator_model(X)
-
-        return X, self.augmentor_loss(x1, X1)
+        x_out = self.comparator_model(x)
+        A_out = self.comparator_model(X)
+        
+        return self.augmentor_loss(x_out, A_out)
+    
+    
+    def pool_comparator(self,
+                        x,
+                        A):
+        '''
+        x_out = pool(x)
+        A_out = pool(A)
+        
+        return self.augmentor_loss(x_out, A_out)
+        
+        '''
+        
+        pass
+        
+        
 
         
+class baseline(torch.nn.Module):
+    def __init__(self):
+        super(baseline, self).__init__()
+        self.conv1 = torch.nn.Conv2d(3, 6, 5)
+        self.pool = torch.nn.MaxPool2d(2, 2)
+        self.conv2 = torch.nn.Conv2d(6, 16, 5)
+        self.fc1 = torch.nn.Linear(16 * 5 * 5, 120)
+        self.fc2 = torch.nn.Linear(120, 84)
+        self.fc3 = torch.nn.Linear(84, 10)
+        
+    def forward(self, x):
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+        x = x.view(-1, 16 * 5 * 5)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        x = F.softmax(x)
+        return x

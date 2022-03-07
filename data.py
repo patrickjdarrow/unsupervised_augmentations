@@ -84,6 +84,8 @@ class MNIST_gen(Datagen):
         self.classes = ['zero', 'one', 'two', 'three', 'four', 
                         'five', 'six', 'seven', 'eight', 'nine']
         
+        
+        
 class CIFAR_gen(Datagen):
     '''
     TODO:
@@ -104,7 +106,6 @@ class CIFAR_gen(Datagen):
         
 
 
-
 class Custom_gen(Datagen):
     '''
     General use datagen for Pytorch Dataset object.
@@ -119,12 +120,6 @@ class Custom_gen(Datagen):
         self._set_dataset(dataset,
                           transforms=torchvision.transforms.Compose(transforms),
                           sample_shape=sample_shape)
-        
-        
-        
-        #########################################################################
-        #########################################################################
-        #########################################################################
         
         
         
@@ -188,6 +183,9 @@ class CIFAR10_custom(VisionDataset):
             data = pickle.load(infile, encoding='latin1')
             self.classes = data[self.meta['key']]
         self.class_to_idx = {_class: i for i, _class in enumerate(self.classes)}
+        
+    def __len__(self):
+        return len(self.data)
 
     def __getitem__(self, index):
         """
@@ -211,9 +209,6 @@ class CIFAR10_custom(VisionDataset):
 
         return img, target
 
-
-    def __len__(self):
-        return len(self.data)
 
     def extra_repr(self):
         return "Split: {}".format("Train" if self.train is True else "Test")
